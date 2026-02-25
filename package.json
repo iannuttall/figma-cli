@@ -1,0 +1,55 @@
+{
+  "name": "figma-cli",
+  "version": "1.0.0",
+  "description": "Fast CLI for Figma design audits, token extraction, and asset export",
+  "author": "Ian Nuttall",
+  "keywords": [
+    "figma",
+    "cli",
+    "design-system",
+    "tokens",
+    "playbooks-skill"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iannuttall/figma-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iannuttall/figma-cli/issues"
+  },
+  "homepage": "https://github.com/iannuttall/figma-cli#readme",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "fig": "./dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "skills/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "prepare": "npm run build",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
