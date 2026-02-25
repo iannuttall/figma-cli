@@ -1,6 +1,6 @@
 {
-  "name": "figma-cli",
-  "version": "1.0.0",
+  "name": "@iannuttall/figma-cli",
+  "version": "0.0.1",
   "description": "Fast CLI for Figma design audits, token extraction, and asset export",
   "author": "Ian Nuttall",
   "keywords": [
@@ -21,7 +21,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "fig": "./dist/cli.js"
+    "fig": "dist/cli.js"
   },
   "files": [
     "dist/",

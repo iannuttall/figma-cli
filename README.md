@@ -2,7 +2,13 @@
 
 Read-only Figma tools for audits and implementation details.
 
-## Install
+## Install (npm)
+
+```bash
+npm install -g @iannuttall/figma-cli
+```
+
+## Install (local dev)
 
 ```bash
 npm install
