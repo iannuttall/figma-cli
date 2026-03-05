@@ -16,6 +16,7 @@ import { getNodeStyles } from './commands/styles.js';
 import { diffNodes } from './commands/diff.js';
 import { inspectNode } from './commands/inspect.js';
 import { printNodeTree } from './commands/tree.js';
+import { getNodeColors } from './commands/colors.js';
 
 type CommandHandler = (...args: any[]) => Promise<void>;
 
@@ -28,6 +29,18 @@ function withErrorHandling(handler: CommandHandler): (...args: any[]) => Promise
       process.exit(1);
     }
   };
+}
+
+function parseOptionalDepthOption(value: unknown, defaultDepth = 1): number | undefined {
+  if (value === undefined || value === false) return undefined;
+  if (value === true) return defaultDepth;
+
+  const parsed = parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid depth value: ${value}`);
+  }
+
+  return parsed;
 }
 
 program
@@ -161,12 +174,24 @@ program
 // Computed styles command
 program
   .command('styles <file>')
-  .description('Dump computed CSS-like properties for one or more nodes')
+  .description('Dump computed CSS-like properties for one or more nodes (uses resolved instance values)')
   .option('-n, --node-id <id>', 'Target node ID')
   .option('--node-ids <ids>', 'Multiple node IDs (comma-separated)')
   .option('-f, --format <format>', 'Output format: json, text', 'text')
   .action(withErrorHandling(async (file, opts) => {
     await getNodeStyles(file, opts);
+  }));
+
+// Resolved color command
+program
+  .command('colors <file>')
+  .description('Show resolved fill/stroke colors for a node and descendants')
+  .requiredOption('-n, --node-id <id>', 'Target node ID')
+  .option('-d, --depth <number>', 'Descendant depth (0=self only, default: 1)', '1')
+  .option('-f, --format <format>', 'Output format: json, text', 'text')
+  .action(withErrorHandling(async (file, opts) => {
+    const depth = parseInt(opts.depth, 10);
+    await getNodeColors(file, { ...opts, depth });
   }));
 
 // Node diff command
@@ -185,10 +210,13 @@ program
   .description('Inspect one node: dimensions + text + styles')
   .requiredOption('-n, --node-id <id>', 'Target node ID')
   .option('-d, --depth <number>', 'Child depth to include in hierarchy output (default: 2)', '2')
+  .option('--deep [depth]', 'Include resolved fills/strokes for children up to depth N (default N=1)')
+  .option('--recursive [depth]', 'Alias for --deep')
   .option('-f, --format <format>', 'Output format: json, text', 'text')
   .action(withErrorHandling(async (file, opts) => {
     const depth = parseInt(opts.depth, 10);
-    await inspectNode(file, { ...opts, depth });
+    const deep = parseOptionalDepthOption(opts.deep ?? opts.recursive, 1);
+    await inspectNode(file, { ...opts, depth, deep });
   }));
 
 // Node tree command

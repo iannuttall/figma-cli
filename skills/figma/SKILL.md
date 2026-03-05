@@ -37,7 +37,8 @@ Use help first when you're unsure about flags on a specific command.
 
 - Need a screenshot: `fig export`
 - Need copy text: `fig text`
-- Need CSS-like values: `fig styles`
+- Need CSS-like values (resolved instance values): `fig styles`
+- Need resolved fill/stroke colors fast: `fig colors`
 - Need one-shot implementation details: `fig inspect`
 - Need hierarchy/tree: `fig tree`
 - Need feedback threads: `fig comments`
@@ -82,11 +83,20 @@ fig styles <file-or-url> --node-id 2039-16736
 fig styles <file-or-url> --node-ids 2039:16736,2039:6114,2039:6200
 ```
 
+### 3c) Resolved fills/strokes for one node and children
+
+```bash
+fig colors <file-or-url> --node-id 2039:16736
+fig colors <file-or-url> --node-id 2039:16700 --depth 2
+```
+
 ### 4) Find all nodes containing phrase, then inspect one
 
 ```bash
 fig search <file-or-url> --text "Shortened copy"
 fig inspect <file-or-url> --node-id <match-node-id>
+fig inspect <file-or-url> --node-id <match-node-id> --deep
+fig inspect <file-or-url> --node-id <match-node-id> --recursive 2
 ```
 
 ### 5) Compare two versions of a node
@@ -111,7 +121,7 @@ fig export <file-or-url> --node-ids 2039:16700 --format png --crop 0,0,800,120
 
 ## Scope rules (important)
 
-- `--node-id` works on: `audit`, `typography`, `comments`, `text`, `search`, `styles`, `inspect`, `tree`
+- `--node-id` works on: `audit`, `typography`, `comments`, `text`, `search`, `styles`, `colors`, `inspect`, `tree`
 - `--node-ids` works on: `export`, `diff`, `styles`
 - `--page` works on: `info`, `audit`, `comments`, `text`, `search`, `components`, `tree`
 - `fig info` does not support `--node-id`
@@ -132,6 +142,7 @@ fig comments <file-or-url> --unresolved --format json
 fig inspect <file-or-url> --node-id 2039-16736 --format json
 fig styles <file-or-url> --node-id 2039-16736 --format json
 fig styles <file-or-url> --node-ids 2039:16736,2039:6114 --format json
+fig colors <file-or-url> --node-id 2039:16700 --depth 2 --format json
 fig tree <file-or-url> --node-id 2039:16700 --depth 3 --format json
 fig diff <file-or-url> --node-ids 2039:16736,2039:6114 --format json
 ```

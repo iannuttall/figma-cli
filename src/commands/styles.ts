@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import { getFile, getFileNodes, parseFileKey, FigmaEffect, FigmaFill, FigmaNode } from '../api.js';
-import { buildParentMap, normalizeNodeId, parseNodeIdsCsv } from '../utils/nodes.js';
+import { getFile, parseFileKey, FigmaEffect, FigmaFill, FigmaNode } from '../api.js';
+import { findNodePath, normalizeNodeId, parseNodeIdsCsv } from '../utils/nodes.js';
 
 interface StylesOptions {
   nodeId?: string;
@@ -32,6 +32,20 @@ export interface NodeStyleDetails {
   rawStyle: Record<string, unknown>;
 }
 
+export interface NodeResolvedColors {
+  fills: string[];
+  strokes: string[];
+}
+
+export interface NodeColorItem {
+  nodeId: string;
+  nodeName: string;
+  nodeType: string;
+  depth: number;
+  fills: string[];
+  strokes: string[];
+}
+
 function toHex(r: number, g: number, b: number, a = 1): string {
   const toByteHex = (n: number) => Math.round(n * 255).toString(16).padStart(2, '0');
   const base = `#${toByteHex(r)}${toByteHex(g)}${toByteHex(b)}`;
@@ -40,26 +54,57 @@ function toHex(r: number, g: number, b: number, a = 1): string {
 
 function colorFromFill(fill?: FigmaFill): string | undefined {
   if (!fill || fill.type !== 'SOLID' || !fill.color) return undefined;
+  const visible = (fill as unknown as { visible?: unknown }).visible;
+  if (visible === false) return undefined;
   const alpha = typeof fill.opacity === 'number' ? fill.opacity : fill.color.a ?? 1;
   return toHex(fill.color.r, fill.color.g, fill.color.b, alpha);
 }
 
-function firstSolidFill(node: FigmaNode): string | undefined {
-  const fills = Array.isArray(node.fills) ? (node.fills as FigmaFill[]) : [];
-  for (const fill of fills) {
-    const color = colorFromFill(fill);
-    if (color) return color;
+function colorsFromPaints(paints: unknown): string[] {
+  if (!Array.isArray(paints)) return [];
+  const colors: string[] = [];
+  const seen = new Set<string>();
+
+  for (const paint of paints as FigmaFill[]) {
+    const color = colorFromFill(paint);
+    if (!color || seen.has(color)) continue;
+    colors.push(color);
+    seen.add(color);
   }
-  return undefined;
+
+  return colors;
 }
 
-function firstSolidStroke(node: FigmaNode): string | undefined {
-  const strokes = Array.isArray(node.strokes) ? (node.strokes as FigmaFill[]) : [];
-  for (const stroke of strokes) {
-    const color = colorFromFill(stroke);
-    if (color) return color;
-  }
-  return undefined;
+export function getResolvedNodeColors(node: FigmaNode): NodeResolvedColors {
+  return {
+    fills: colorsFromPaints(node.fills),
+    strokes: colorsFromPaints(node.strokes),
+  };
+}
+
+export function collectNodeColors(node: FigmaNode, maxDepth: number): NodeColorItem[] {
+  const depthLimit = Number.isFinite(maxDepth) && maxDepth >= 0 ? Math.floor(maxDepth) : 1;
+  const items: NodeColorItem[] = [];
+
+  const walk = (current: FigmaNode, depth: number): void => {
+    const resolved = getResolvedNodeColors(current);
+    items.push({
+      nodeId: normalizeNodeId(current.id),
+      nodeName: current.name,
+      nodeType: current.type,
+      depth,
+      fills: resolved.fills,
+      strokes: resolved.strokes,
+    });
+
+    if (depth >= depthLimit || !Array.isArray(current.children)) return;
+    for (const child of current.children) {
+      walk(child, depth + 1);
+    }
+  };
+
+  walk(node, 0);
+  return items;
 }
 
 function boxShadowFromEffects(effects: FigmaEffect[] | undefined): string | undefined {
@@ -159,8 +204,9 @@ export function buildStyleDetails(node: FigmaNode): NodeStyleDetails {
   const css: Record<string, string> = {};
   const rec = node as Record<string, unknown>;
 
-  const background = firstSolidFill(node);
-  const stroke = firstSolidStroke(node);
+  const resolvedColors = getResolvedNodeColors(node);
+  const background = resolvedColors.fills[0];
+  const stroke = resolvedColors.strokes[0];
   const boxShadow = boxShadowFromEffects(node.effects as FigmaEffect[] | undefined);
   const padding = inferPaddingFromChildren(node);
 
@@ -297,28 +343,27 @@ export async function getNodeStyles(fileKeyOrUrl: string, options: StylesOptions
     console.log(chalk.dim(`Fetching node styles for ${fileKey} (${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'})...`));
   }
 
-  const [nodesResponse, file] = await Promise.all([
-    getFileNodes(fileKey, nodeIds),
-    getFile(fileKey),
-  ]);
-  const parentMap = buildParentMap(file.document);
+  const file = await getFile(fileKey);
+  const missing: string[] = [];
+  const results = nodeIds.flatMap((nodeId) => {
+    const path = findNodePath(file.document, nodeId);
+    if (!path) {
+      missing.push(nodeId);
+      return [];
+    }
 
-  const missing = nodeIds.filter((id) => !nodesResponse.nodes[id]?.document);
-  if (missing.length > 0) {
-    throw new Error(`Node(s) not found: ${missing.join(', ')}`);
-  }
-
-  const results = nodeIds.map((nodeId) => {
-    const node = nodesResponse.nodes[nodeId].document;
     return {
       fileKey,
       nodeId,
-      nodeName: node.name,
-      nodeType: node.type,
-      parentId: parentMap.get(nodeId),
-      details: buildStyleDetails(node),
+      nodeName: path.node.name,
+      nodeType: path.node.type,
+      parentId: path.parent ? normalizeNodeId(path.parent.id) : undefined,
+      details: buildStyleDetails(path.node),
     };
   });
+  if (missing.length > 0) {
+    throw new Error(`Node(s) not found: ${missing.join(', ')}`);
+  }
 
   if (isJson) {
     if (results.length === 1) {
@@ -359,4 +404,3 @@ export async function getNodeStyles(fileKeyOrUrl: string, options: StylesOptions
     printCss(result);
   });
 }
-

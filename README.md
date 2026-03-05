@@ -46,7 +46,8 @@ source ~/.zshrc
 
 - `fig export`: get a picture of the design.
 - `fig text`: get copy you can actually copy/paste.
-- `fig styles`: get CSS-like values (padding, radius, colors, font size).
+- `fig styles`: get CSS-like values (padding, radius, colors, font size) from resolved nodes (instance overrides included).
+- `fig colors`: get resolved fill/stroke colors for a node + children (depth-based).
 - `fig inspect`: one-shot node inspection (dimensions + text + styles).
 - `fig tree`: get hierarchy with child node IDs/types.
 - `fig comments`: get feedback threads (now includes node text preview by default).
@@ -84,7 +85,11 @@ fig comments <file-or-url> --no-node-preview
 fig text <file-or-url> --node-id 2039-16736
 fig styles <file-or-url> --node-id 2039-16736
 fig styles <file-or-url> --node-ids 2039:16736,2039:6114
+fig colors <file-or-url> --node-id 2039:16736
+fig colors <file-or-url> --node-id 2039:16700 --depth 2
 fig inspect <file-or-url> --node-id 2039-16736
+fig inspect <file-or-url> --node-id 2039-16736 --deep
+fig inspect <file-or-url> --node-id 2039-16700 --recursive 2
 fig tree <file-or-url> --node-id 2039:16700 --depth 3
 
 # find and compare

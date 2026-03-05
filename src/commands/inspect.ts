@@ -1,11 +1,12 @@
 import chalk from 'chalk';
 import { getFile, parseFileKey, FigmaNode } from '../api.js';
-import { buildStyleDetails } from './styles.js';
+import { buildStyleDetails, collectNodeColors, NodeColorItem } from './styles.js';
 import { findNodePath, normalizeNodeId } from '../utils/nodes.js';
 
 interface InspectOptions {
   nodeId?: string;
   depth?: number;
+  deep?: number;
   format?: 'json' | 'text';
 }
 
@@ -38,6 +39,8 @@ interface InspectResult {
     content: string[];
     preview: string;
   };
+  colorsDepth?: number;
+  colors?: NodeColorItem[];
   styles: Record<string, string>;
   layout: ReturnType<typeof buildStyleDetails>['layout'];
   style: Record<string, unknown>;
@@ -122,6 +125,19 @@ function printInspect(result: InspectResult): void {
   }
   console.log('');
 
+  if (typeof result.colorsDepth === 'number' && Array.isArray(result.colors)) {
+    console.log(chalk.bold(`Resolved Colors (depth=${result.colorsDepth})`));
+    for (const item of result.colors) {
+      const indent = '  '.repeat(item.depth);
+      const fills = item.fills.length > 0 ? item.fills.join(', ') : 'none';
+      const strokes = item.strokes.length > 0 ? item.strokes.join(', ') : 'none';
+      console.log(`${indent}- ${item.nodeName} (${item.nodeId}) ${item.nodeType}`);
+      console.log(`${indent}  fills: ${fills}`);
+      console.log(`${indent}  strokes: ${strokes}`);
+    }
+    console.log('');
+  }
+
   console.log(chalk.bold('Styles'));
   if (Object.keys(result.styles).length === 0) {
     console.log('  No style properties found.');
@@ -139,6 +155,7 @@ export async function inspectNode(fileKeyOrUrl: string, options: InspectOptions)
   const isJson = format === 'json';
   const rawNodeId = options.nodeId?.trim();
   const depth = Number.isFinite(options.depth) && options.depth! > 0 ? Math.floor(options.depth!) : 2;
+  const colorsDepth = Number.isFinite(options.deep) && options.deep! >= 0 ? Math.floor(options.deep!) : undefined;
 
   if (!rawNodeId) {
     throw new Error('Pass a node ID with --node-id.');
@@ -158,6 +175,7 @@ export async function inspectNode(fileKeyOrUrl: string, options: InspectOptions)
   const textContent: string[] = [];
   collectText(path.node, textContent);
   const styleDetails = buildStyleDetails(path.node);
+  const colors = typeof colorsDepth === 'number' ? collectNodeColors(path.node, colorsDepth) : undefined;
 
   const result: InspectResult = {
     fileKey,
@@ -183,6 +201,8 @@ export async function inspectNode(fileKeyOrUrl: string, options: InspectOptions)
       content: textContent,
       preview: buildTextPreview(textContent),
     },
+    colorsDepth,
+    colors,
     styles: styleDetails.css,
     layout: styleDetails.layout,
     style: styleDetails.rawStyle,
@@ -195,4 +215,3 @@ export async function inspectNode(fileKeyOrUrl: string, options: InspectOptions)
 
   printInspect(result);
 }
-
